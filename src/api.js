@@ -101,7 +101,7 @@ async function analyzeWithGemini(taskText, apiKey) {
         // No thinkingConfig — not supported on the free v1beta endpoint.
         // extractGeminiText() handles multi-part thinking responses gracefully.
         generationConfig: {
-          maxOutputTokens: 2048,
+          maxOutputTokens: 5000,
           temperature: 0.2,
         },
       }),
