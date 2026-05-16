@@ -98,12 +98,12 @@ async function analyzeWithGemini(taskText, apiKey) {
       body: JSON.stringify({
         contents: [{ parts: [{ text: buildPrompt(taskText) }] }],
         // No responseMimeType — it conflicts with thinking mode in 2.5 Flash.
-        // thinkingConfig budgetTokens:0 disables thinking for faster/cheaper responses.
+        // No thinkingConfig — not supported on the free v1beta endpoint.
+        // extractGeminiText() handles multi-part thinking responses gracefully.
         generationConfig: {
           maxOutputTokens: 1024,
           temperature: 0.2,
         },
-        thinkingConfig: { thinkingBudget: 0 },
       }),
     });
 
