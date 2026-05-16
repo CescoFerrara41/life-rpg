@@ -27,11 +27,28 @@ Rules:
 
 // ── RESPONSE SANITIZER ────────────────────────────────────────────────────────
 
+// Extracts the first valid JSON object from a string, tolerating surrounding
+// prose, markdown fences, and thinking-model preamble.
+function extractJson(raw) {
+  // Strip markdown fences first
+  let text = raw.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+
+  // Try a direct parse first (happy path)
+  try { return JSON.parse(text); } catch {}
+
+  // Find the outermost { ... } block and try parsing that
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(text.slice(start, end + 1)); } catch {}
+  }
+
+  return null;
+}
+
 function sanitize(rawText) {
-  const clean = rawText.replace(/```json|```/g, "").trim();
-  let parsed;
-  try { parsed = JSON.parse(clean); }
-  catch { return { xp: {}, summary: "AI response was not valid JSON.", error: "parse" }; }
+  const parsed = extractJson(rawText);
+  if (!parsed) return { xp: {}, summary: "AI response was not valid JSON.", error: "parse" };
 
   const cleanXp = {};
   if (parsed?.xp && typeof parsed.xp === "object") {
@@ -54,6 +71,23 @@ const GEMINI_MODEL = "gemini-2.5-flash";
 const geminiUrl = (key) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
 
+// Gemini 2.5 Flash is a thinking model. Two quirks to handle:
+//   1. responseMimeType:"application/json" conflicts with thinking mode — omit it.
+//   2. The response may contain a thought part followed by the actual answer part.
+//      We scan ALL parts and use the first one that contains a JSON object.
+function extractGeminiText(data) {
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  // Prefer parts that look like they contain our JSON (have "{" in them)
+  for (const part of parts) {
+    if (part.text && part.text.includes("{")) return part.text;
+  }
+  // Fallback: just return the last text part
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (parts[i].text) return parts[i].text;
+  }
+  return "{}";
+}
+
 async function analyzeWithGemini(taskText, apiKey) {
   if (!apiKey) return { xp: {}, summary: "No Gemini API key set. Add it in Settings.", error: "no_key" };
 
@@ -63,7 +97,13 @@ async function analyzeWithGemini(taskText, apiKey) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: buildPrompt(taskText) }] }],
-        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 400, temperature: 0.2 },
+        // No responseMimeType — it conflicts with thinking mode in 2.5 Flash.
+        // thinkingConfig budgetTokens:0 disables thinking for faster/cheaper responses.
+        generationConfig: {
+          maxOutputTokens: 1024,
+          temperature: 0.2,
+        },
+        thinkingConfig: { thinkingBudget: 0 },
       }),
     });
 
@@ -80,7 +120,7 @@ async function analyzeWithGemini(taskText, apiKey) {
     }
 
     const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const text = extractGeminiText(data);
     return sanitize(text);
   } catch {
     return { xp: {}, summary: "Network error reaching Gemini. Check your connection.", error: "network" };
