@@ -1,8 +1,10 @@
 // Versioned localStorage layer. Bump VERSION if the shape changes
 // in a non-backward-compatible way.
 const VERSION = 1;
-const KEY = "life-rpg:v1:state";
-const KEY_API = "life-rpg:v1:apikey";
+const KEY_STATE    = "life-rpg:v1:state";
+const KEY_PROVIDER = "life-rpg:v1:provider";   // "gemini" | "claude"
+const KEY_GEMINI   = "life-rpg:v1:key:gemini";
+const KEY_CLAUDE   = "life-rpg:v1:key:claude";
 
 const DEFAULT_STATE = {
   version: VERSION,
@@ -11,9 +13,11 @@ const DEFAULT_STATE = {
   log: [],
 };
 
+// ── App state ────────────────────────────────────────────────────────────────
+
 export function loadState() {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(KEY_STATE);
     if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw);
     if (parsed.version !== VERSION) return { ...DEFAULT_STATE };
@@ -25,38 +29,54 @@ export function loadState() {
 
 export function saveState(state) {
   try {
-    const toSave = { ...state, version: VERSION };
-    localStorage.setItem(KEY, JSON.stringify(toSave));
+    localStorage.setItem(KEY_STATE, JSON.stringify({ ...state, version: VERSION }));
   } catch (e) {
-    // Quota / private-mode fallback — silent. UI shows a notice elsewhere.
     console.warn("Could not save state:", e);
   }
 }
 
 export function clearState() {
+  try { localStorage.removeItem(KEY_STATE); } catch {}
+}
+
+// ── Provider selection ───────────────────────────────────────────────────────
+
+export function loadProvider() {
+  try { return localStorage.getItem(KEY_PROVIDER) || "gemini"; }
+  catch { return "gemini"; }
+}
+
+export function saveProvider(provider) {
   try {
-    localStorage.removeItem(KEY);
+    if (provider) localStorage.setItem(KEY_PROVIDER, provider);
+    else localStorage.removeItem(KEY_PROVIDER);
   } catch {}
 }
 
-// API key is kept under its own key so wiping app data doesn't nuke the key,
-// and exporting data doesn't include the key.
-export function loadApiKey() {
+// ── API keys (one per provider) ──────────────────────────────────────────────
+
+export function loadKeys() {
   try {
-    return localStorage.getItem(KEY_API) || "";
+    return {
+      gemini: localStorage.getItem(KEY_GEMINI) || "",
+      claude: localStorage.getItem(KEY_CLAUDE) || "",
+    };
   } catch {
-    return "";
+    return { gemini: "", claude: "" };
   }
 }
 
-export function saveApiKey(key) {
+export function saveKey(provider, key) {
+  const storageKey = provider === "claude" ? KEY_CLAUDE : KEY_GEMINI;
   try {
-    if (key) localStorage.setItem(KEY_API, key);
-    else localStorage.removeItem(KEY_API);
+    if (key) localStorage.setItem(storageKey, key);
+    else localStorage.removeItem(storageKey);
   } catch {}
 }
 
 // ── Export / Import ──────────────────────────────────────────────────────────
+// API keys are intentionally excluded from exports.
+
 export function exportToJson(state) {
   const blob = new Blob(
     [JSON.stringify({ ...state, version: VERSION, exportedAt: new Date().toISOString() }, null, 2)],
@@ -79,19 +99,11 @@ export function importFromFile(file) {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
-        // Basic validation
         if (typeof parsed !== "object" || parsed === null) throw new Error("Not an object");
         if (!parsed.xpMap || typeof parsed.xpMap !== "object") throw new Error("Missing xpMap");
         if (!Array.isArray(parsed.log)) throw new Error("Missing log");
-        resolve({
-          version: VERSION,
-          phase: "app",
-          xpMap: parsed.xpMap,
-          log: parsed.log,
-        });
-      } catch (e) {
-        reject(e);
-      }
+        resolve({ version: VERSION, phase: "app", xpMap: parsed.xpMap, log: parsed.log });
+      } catch (e) { reject(e); }
     };
     reader.onerror = () => reject(reader.error);
     reader.readAsText(file);
