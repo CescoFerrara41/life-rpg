@@ -77,9 +77,18 @@ function QuestionnaireScreen({ onComplete }) {
   const info = STATS.find(s => s.id === q.stat);
 
   function next() {
-    if (step < QUESTIONS.length - 1) setStep(s => s + 1);
-    else onComplete(values);
+  const updatedValues = {
+    ...values,
+    [q.stat]: val,
+  };
+
+  if (step < QUESTIONS.length - 1) {
+    setValues(updatedValues);
+    setStep(s => s + 1);
+  } else {
+    onComplete(updatedValues);
   }
+}
 
   function back() {
     if (step > 0) setStep(s => s - 1);
