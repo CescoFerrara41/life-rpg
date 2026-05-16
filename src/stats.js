@@ -43,6 +43,8 @@ export function getTotalXpForLevel(level) {
 }
 
 export function getLevelFromXp(totalXp) {
+  // XP can temporarily go negative from bad events, but level floors at 0.
+  if (totalXp <= 0) return { level: 0, currentXp: Math.max(totalXp, -xpForLevel(0)), neededXp: xpForLevel(0) };
   let level = 0;
   let spent = 0;
   while (spent + xpForLevel(level) <= totalXp) {

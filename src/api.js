@@ -6,23 +6,33 @@ const VALID_STATS = new Set(STAT_IDS);
 
 function buildPrompt(taskText) {
   const statList = STAT_IDS.join(", ");
-  return `You are an XP allocation system for a real-life RPG. A user completed this task: "${taskText}"
+  return `You are an XP allocation system for a real-life RPG. The user reported this event: "${taskText}"
 
 Available stats: ${statList}
 
 Return ONLY valid JSON (no markdown, no explanation) like:
-{"xp": {"strength": 40, "health": 20}, "summary": "One sentence about what they earned."}
+{"xp": {"strength": 40, "health": -150}, "summary": "One sentence describing the impact."}
 
 Rules:
-- Only include stats from the list above that GENUINELY apply to this task.
-- If the task does not genuinely relate to ANY of the listed stats, return {"xp": {}, "summary": "..."} with an EMPTY xp object and a brief summary explaining it does not match any tracked stat. Do NOT invent partial matches just to award something.
-- XP range 5-500 per stat. Scale by effort/mastery:
-  - Quick/easy task: 5-30 XP
-  - Moderate effort (few hours): 30-100 XP
-  - Major effort (days/weeks): 100-250 XP
-  - Mastery/completion of long goal: 250-500 XP
-- Tasks can affect multiple stats.
-- Be generous but realistic. Do not award XP for stats that don't truly apply.`;
+- Only include stats from the list above that GENUINELY apply to this event.
+- If the event does not relate to ANY listed stat, return {"xp": {}, "summary": "..."} with an empty xp object. Do NOT invent partial matches.
+
+POSITIVE XP — for accomplishments, progress, effort, and growth:
+  - Quick/easy win: +5 to +30
+  - Moderate effort (few hours): +30 to +100
+  - Major effort (days/weeks): +100 to +250
+  - Mastery or long-term goal completed: +250 to +500
+
+NEGATIVE XP — for setbacks, harm, loss, or decline. Use negative XP when the event is genuinely bad for the user:
+  - Minor setback or short illness: -5 to -50
+  - Significant setback (serious injury, job loss, breakup): -50 to -200
+  - Severe or life-altering event (major diagnosis, serious accident): -200 to -500
+  - Apply negative XP to the stats that are most directly impacted (e.g. a cancer diagnosis hits health hard; a breakup hits relationships and mindfulness; losing a job hits finance and discipline)
+  - Do NOT apply negative XP to unaffected stats
+
+NEUTRAL or AMBIGUOUS events: if an event is neither clearly positive nor negative (e.g. "I watched TV"), give no XP and explain briefly.
+
+Be empathetic but realistic. A cancer diagnosis is not a health achievement — it is a health loss. A relapse is not discipline progress. A car accident is not an athletics event.`;
 }
 
 // ── RESPONSE SANITIZER ────────────────────────────────────────────────────────
@@ -30,19 +40,13 @@ Rules:
 // Extracts the first valid JSON object from a string, tolerating surrounding
 // prose, markdown fences, and thinking-model preamble.
 function extractJson(raw) {
-  // Strip markdown fences first
   let text = raw.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
-
-  // Try a direct parse first (happy path)
   try { return JSON.parse(text); } catch {}
-
-  // Find the outermost { ... } block and try parsing that
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start !== -1 && end > start) {
     try { return JSON.parse(text.slice(start, end + 1)); } catch {}
   }
-
   return null;
 }
 
@@ -55,8 +59,9 @@ function sanitize(rawText) {
     for (const [k, v] of Object.entries(parsed.xp)) {
       if (!VALID_STATS.has(k)) continue;
       const n = Math.round(Number(v));
-      if (!Number.isFinite(n) || n <= 0) continue;
-      cleanXp[k] = Math.min(500, n);
+      if (!Number.isFinite(n) || n === 0) continue;
+      // Allow negative XP (down to -500), cap positive at +500
+      cleanXp[k] = Math.max(-500, Math.min(500, n));
     }
   }
   return {
@@ -101,7 +106,7 @@ async function analyzeWithGemini(taskText, apiKey) {
         // No thinkingConfig — not supported on the free v1beta endpoint.
         // extractGeminiText() handles multi-part thinking responses gracefully.
         generationConfig: {
-          maxOutputTokens: 20000,
+          maxOutputTokens: 10000,
           temperature: 0.2,
         },
       }),

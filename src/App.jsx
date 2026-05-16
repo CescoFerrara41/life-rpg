@@ -21,15 +21,20 @@ import {
 // ── PRIMITIVES ───────────────────────────────────────────────────────────────
 
 function XPBar({ current, needed, color, animated }) {
-  const pct = Math.min(100, (current / needed) * 100);
+  const isNeg = current < 0;
+  // For negative XP: show how far into the red they are as a red bar
+  const pct = isNeg
+    ? Math.min(100, (Math.abs(current) / needed) * 100)
+    : Math.min(100, (current / needed) * 100);
+  const barColor = isNeg ? "#FF6B6B" : color;
   return (
     <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 99, height: 6, overflow: "hidden" }}>
       <div style={{
         height: "100%", borderRadius: 99,
-        background: `linear-gradient(90deg, ${color}99, ${color})`,
+        background: `linear-gradient(90deg, ${barColor}99, ${barColor})`,
         width: `${pct}%`,
         transition: animated ? "width 0.8s cubic-bezier(0.23,1,0.32,1)" : "none",
-        boxShadow: `0 0 8px ${color}88`,
+        boxShadow: `0 0 8px ${barColor}88`,
       }} />
     </div>
   );
@@ -352,11 +357,18 @@ function TaskTab({ onSubmit, log, onDeleteLogEntry, onUndoLast, provider, keys, 
         </div>
       )}
 
-      {result && !result.error && result.xp && Object.keys(result.xp).length > 0 && (
+      {result && !result.error && result.xp && Object.keys(result.xp).length > 0 && (() => {
+        const allNeg = Object.values(result.xp).every(v => v < 0);
+        const mixed = !allNeg && Object.values(result.xp).some(v => v < 0);
+        return (
         <div style={{
           marginTop: 20,
-          background: "linear-gradient(135deg, rgba(168,85,247,0.15), rgba(99,102,241,0.1))",
-          border: "1px solid rgba(168,85,247,0.3)",
+          background: allNeg
+            ? "linear-gradient(135deg, rgba(255,107,107,0.15), rgba(200,50,50,0.08))"
+            : "linear-gradient(135deg, rgba(168,85,247,0.15), rgba(99,102,241,0.1))",
+          border: allNeg
+            ? "1px solid rgba(255,107,107,0.35)"
+            : "1px solid rgba(168,85,247,0.3)",
           borderRadius: 20, padding: 20,
           animation: "slideUp 0.4s ease",
         }}>
@@ -367,15 +379,22 @@ function TaskTab({ onSubmit, log, onDeleteLogEntry, onUndoLast, provider, keys, 
             {Object.entries(result.xp).map(([statId, xp]) => {
               const info = STATS.find(s => s.id === statId);
               if (!info) return null;
+              const isNeg = xp < 0;
               return (
                 <div key={statId} style={{
                   display: "flex", alignItems: "center", gap: 10,
-                  background: `${info.color}11`, border: `1px solid ${info.color}33`,
+                  background: isNeg ? "rgba(255,107,107,0.08)" : `${info.color}11`,
+                  border: isNeg ? "1px solid rgba(255,107,107,0.25)" : `1px solid ${info.color}33`,
                   borderRadius: 12, padding: "10px 14px",
                 }}>
                   <span style={{ fontSize: 18 }}>{info.icon}</span>
                   <span style={{ flex: 1, color: "#fff", fontSize: 13, fontWeight: 600 }}>{info.label}</span>
-                  <span style={{ color: info.color, fontWeight: 800, fontSize: 16, fontFamily: "'Space Grotesk', sans-serif" }}>+{xp} XP</span>
+                  <span style={{
+                    color: isNeg ? "#FF9999" : info.color,
+                    fontWeight: 800, fontSize: 16, fontFamily: "'Space Grotesk', sans-serif",
+                  }}>
+                    {xp > 0 ? `+${xp}` : xp} XP
+                  </span>
                 </div>
               );
             })}
@@ -386,10 +405,11 @@ function TaskTab({ onSubmit, log, onDeleteLogEntry, onUndoLast, provider, keys, 
             borderRadius: 12, padding: "10px 0", color: "rgba(255,255,255,0.7)",
             fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
           }}>
-            Undo last claim
+            Undo
           </button>
         </div>
-      )}
+        );
+      })()}
 
       {log.length > 0 && (
         <div style={{ marginTop: 28 }}>
@@ -425,9 +445,10 @@ function TaskTab({ onSubmit, log, onDeleteLogEntry, onUndoLast, provider, keys, 
                       if (!info) return null;
                       return (
                         <span key={sid} style={{
-                          background: `${info.color}22`, color: info.color,
+                          background: xp < 0 ? "rgba(255,107,107,0.15)" : `${info.color}22`,
+                          color: xp < 0 ? "#FF9999" : info.color,
                           borderRadius: 8, padding: "3px 8px", fontSize: 11, fontWeight: 700,
-                        }}>{info.icon} +{xp}</span>
+                        }}>{info.icon} {xp > 0 ? `+${xp}` : xp}</span>
                       );
                     })}
                   </div>
