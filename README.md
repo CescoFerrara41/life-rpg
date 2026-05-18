@@ -68,19 +68,18 @@ The app will now launch fullscreen from the home screen like a native app, with 
 
 ## API key setup
 
-The XP analysis uses the Anthropic API directly from your browser (a "bring-your-own-key" pattern).
+The XP analysis uses the Google Gemini API — **completely free, no credit card required**.
 
-1. Get a key at [console.anthropic.com](https://console.anthropic.com/).
-2. In the app, tap **Settings** in the bottom bar.
-3. Paste your key and tap **Save key**.
+1. Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) and sign in with your Google account.
+2. Click **Create API key** and copy it (it starts with `AIza`).
+3. In the app, tap **Settings** in the bottom bar.
+4. Paste your key and tap **Save key**.
 
-The key is stored only in your browser's localStorage (never sent anywhere except api.anthropic.com). It's *not* included in JSON exports.
+The key is stored only in your browser's localStorage and is never included in JSON exports. All requests go directly from your device to `generativelanguage.googleapis.com`.
 
-The app uses **Claude Haiku 4.5** by default — task analysis is short and cheap (likely well under $0.001 per claim).
+The app uses **Gemini 2.5 Flash**, which is free with no expiration. The free tier allows around 10–15 requests per minute and hundreds of requests per day — far more than you'll ever need for logging personal tasks.
 
-### Why does this work? Isn't a key in the browser unsafe?
-
-For a multi-user public site, yes — but this is a single-user, self-hosted app. *Your* key, in *your* browser, only ever talking to api.anthropic.com. Anthropic explicitly supports this "BYOK" pattern via the `anthropic-dangerous-direct-browser-access` header that the app sets automatically. Don't share your key, and don't paste someone else's key into a Life RPG instance you don't control.
+One caveat: on the free tier, Google may use your prompts to improve their models. Since you're just describing personal tasks like "went for a run" or "read a chapter", this is unlikely to matter in practice. If it does, you can enable billing on your Google Cloud project (same key, no other changes needed), and your data won't be used for training.
 
 ## Data
 

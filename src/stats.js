@@ -30,10 +30,7 @@ export const STAT_IDS = STATS.map(s => s.id);
 
 // XP needed to go from level N to N+1 (exponential scale)
 export function xpForLevel(level) {
-  if (100+level < 250) {
-    return 100+level;
-  }
-  return 250;
+  return Math.floor(100 * Math.pow(1.15, level));
 }
 
 export function getTotalXpForLevel(level) {

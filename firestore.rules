@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users ────────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      // Anyone signed in can read any user (needed for friend profiles)
+      allow read: if request.auth != null;
+
+      // Only you can write your own document, EXCEPT the encouragements field
+      // which friends can write into (handled below via the specific field check)
+      allow create: if request.auth.uid == uid;
+      allow update: if request.auth.uid == uid
+        // Allow friends to write only into encouragements.{theirUid}
+        || (request.auth != null
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['encouragements'])
+            && request.resource.data.encouragements.diff(resource.data.encouragements)
+                .affectedKeys().hasOnly([request.auth.uid]));
+    }
+
+    // ── Friend code index ─────────────────────────────────────────────────────
+    match /friendcodes/{code} {
+      // Anyone signed in can look up a code or create their own entry
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null;
+      // Only the owner can update/delete their code entry
+      allow update, delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+  }
+}
