@@ -41,6 +41,11 @@ const firebaseConfig = {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Detect un-filled placeholder config and expose a clear flag.
+export const FIREBASE_CONFIGURED = !Object.values(firebaseConfig).some(v =>
+  typeof v === "string" && v.startsWith("PASTE_")
+);
+
 const app        = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db   = getFirestore(app);
