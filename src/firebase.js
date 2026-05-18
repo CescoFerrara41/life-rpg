@@ -31,12 +31,13 @@ import {
 
 // ── PASTE YOUR CONFIG HERE ───────────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey:            "PASTE_YOUR_API_KEY_HERE",
-  authDomain:        "PASTE_YOUR_AUTH_DOMAIN_HERE",
-  projectId:         "PASTE_YOUR_PROJECT_ID_HERE",
-  storageBucket:     "PASTE_YOUR_STORAGE_BUCKET_HERE",
-  messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID_HERE",
-  appId:             "PASTE_YOUR_APP_ID_HERE",
+  apiKey: "AIzaSyDDqdw5LKEOMnq46PMxc5WI1ATu-Oym0i4",
+  authDomain: "liferpg-cb0b2.firebaseapp.com",
+  projectId: "liferpg-cb0b2",
+  storageBucket: "liferpg-cb0b2.firebasestorage.app",
+  messagingSenderId: "213113783682",
+  appId: "1:213113783682:web:0d5eb3e1bb57cc73a07b9b",
+  measurementId: "G-XML6Z52DV8"
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
